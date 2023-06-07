@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.17.1.54307",
-      "templateHash": "9181060035193593449"
+      "templateHash": "13873483488237761686"
     }
   },
   "parameters": {
@@ -78,6 +78,7 @@
         "privateEndpointNetworkPolicies": "Disabled"
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
         "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
       ]
     },

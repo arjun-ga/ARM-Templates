@@ -64,6 +64,9 @@ resource privateEndpointSubnet 'Microsoft.Network/virtualNetworks/subnets@2021-0
     addressPrefix: '10.0.1.0/24'
     privateEndpointNetworkPolicies: 'Disabled'
   }
+  dependsOn:[
+    subnet
+  ]
 }
 
 //creating App Service Plan
@@ -325,3 +328,4 @@ resource appInsightsPrivateLink 'Microsoft.Insights/privateLinkScopes/scopedReso
     privateEndpoint
   ]
 }
+
