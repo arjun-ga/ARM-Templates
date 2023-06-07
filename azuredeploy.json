@@ -1,0 +1,396 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.17.1.54307",
+      "templateHash": "10855694245736268780"
+    }
+  },
+  "parameters": {
+    "myTestResourceName": {
+      "type": "string",
+      "metadata": {
+        "description": " Prefix of all resources"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+    "vnetName": "[format('{0}-vnet', parameters('myTestResourceName'))]",
+    "subnetName": "[format('{0}-subnet', variables('vnetName'))]",
+    "privateLinkScopeName": "[format('{0}-private-link-scope', parameters('myTestResourceName'))]",
+    "privateEndpointName": "[format('{0}-private-endpoint', parameters('myTestResourceName'))]",
+    "pvtEndpointDnsGroupName": "[format('{0}/default', variables('privateEndpointName'))]",
+    "appName": "[format('{0}-WebApp{1}', parameters('myTestResourceName'), uniqueString(resourceGroup().id))]",
+    "appServicePlanName": "[format('{0}-ASP', variables('appName'))]",
+    "appServicePlanSku": "S1",
+    "appInsightName": "[format('{0}-AI', parameters('myTestResourceName'))]",
+    "logAnalyticsName": "[format('{0}-LAW', parameters('myTestResourceName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2021-05-01",
+      "name": "[format('{0}/{1}', variables('vnetName'), variables('subnetName'))]",
+      "properties": {
+        "addressPrefix": "10.0.0.0/24",
+        "privateEndpointNetworkPolicies": "Disabled",
+        "delegations": [
+          {
+            "name": "Microsoft.Web.serverFarms",
+            "properties": {
+              "serviceName": "Microsoft.Web/serverFarms"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2021-05-01",
+      "name": "[format('{0}/{1}', variables('vnetName'), format('{0}-pe', variables('subnetName')))]",
+      "properties": {
+        "addressPrefix": "10.0.1.0/24",
+        "privateEndpointNetworkPolicies": "Disabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2020-06-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[variables('appServicePlanSku')]"
+      },
+      "kind": "app"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-01-01",
+      "name": "[variables('appName')]",
+      "location": "[parameters('location')]",
+      "kind": "app",
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
+        "httpsOnly": true,
+        "siteConfig": {
+          "vnetRouteAllEnabled": true,
+          "http20Enabled": true
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightName')]",
+      "location": "[parameters('location')]",
+      "kind": "string",
+      "tags": {
+        "displayName": "AppInsight",
+        "ProjectName": "[variables('appName')]"
+      },
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2020-08-01",
+      "name": "[variables('logAnalyticsName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "displayName": "Log Analytics",
+        "ProjectName": "[variables('appName')]"
+      },
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2020-06-01",
+      "name": "[format('{0}/{1}', variables('appName'), 'appsettings')]",
+      "properties": {
+        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightName')), '2020-02-02').InstrumentationKey]",
+        "ApplicationInsightsAgent_EXTENSION_VERSION": "~2",
+        "XDT_MicrosoftApplicationInsights_Mode": "recommended",
+        "InstrumentationEngine_EXTENSION_VERSION": "~1"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightName'))]",
+        "[resourceId('Microsoft.Web/sites', variables('appName'))]"
+      ]
+    },
+    {
+      "type": "microsoft.insights/privateLinkScopes",
+      "apiVersion": "2021-07-01-preview",
+      "name": "[variables('privateLinkScopeName')]",
+      "location": "global",
+      "properties": {
+        "accessModeSettings": {
+          "ingestionAccessMode": "Open",
+          "queryAccessMode": "Open"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('privateEndpointName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "subnet": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), format('{0}-pe', variables('subnetName')))]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "[variables('privateEndpointName')]",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('microsoft.insights/privateLinkScopes', variables('privateLinkScopeName'))]",
+              "groupIds": [
+                "azuremonitor"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), format('{0}-pe', variables('subnetName')))]",
+        "[resourceId('microsoft.insights/privateLinkScopes', variables('privateLinkScopeName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "privatelink.monitor.azure.com",
+      "location": "global",
+      "tags": {},
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "privatelink.oms.opinsights.azure.com",
+      "location": "global",
+      "tags": {},
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "privatelink.ods.opinsights.azure.com",
+      "location": "global",
+      "tags": {},
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "privatelink.agentsvc.azure-automation.net",
+      "location": "global",
+      "tags": {},
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "privatelink.blob.core.windows.net",
+      "location": "global",
+      "tags": {},
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[format('{0}/{1}', 'privatelink.monitor.azure.com', 'privatelink_monitor_azure_com-vnetlink')]",
+      "location": "global",
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        },
+        "registrationEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.monitor.azure.com')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[format('{0}/{1}', 'privatelink.oms.opinsights.azure.com', 'privatelink_oms_opinsights_azure_com-vnetlink')]",
+      "location": "global",
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        },
+        "registrationEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.oms.opinsights.azure.com')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[format('{0}/{1}', 'privatelink.ods.opinsights.azure.com', 'privatelink_ods_opinsights_azure_com-vnetlink')]",
+      "location": "global",
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        },
+        "registrationEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.ods.opinsights.azure.com')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[format('{0}/{1}', 'privatelink.agentsvc.azure-automation.net', 'privatelink_agentsvc_azure_automation_net-vnetlink')]",
+      "location": "global",
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        },
+        "registrationEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.agentsvc.azure-automation.net')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[format('{0}/{1}', 'privatelink.blob.core.windows.net', 'privatelink_blob_core_windows_net-ventlink')]",
+      "location": "global",
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        },
+        "registrationEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('pvtEndpointDnsGroupName')]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "privatelink-monitor-azure-com",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.monitor.azure.com')]"
+            }
+          },
+          {
+            "name": "privatelink-oms-opinsights-azure-com",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.oms.opinsights.azure.com')]"
+            }
+          },
+          {
+            "name": "privatelink-ods-opinsights-azure-com",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.ods.opinsights.azure.com')]"
+            }
+          },
+          {
+            "name": "privatelink-agentsvc-azure-automation-net",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.agentsvc.azure-automation.net')]"
+            }
+          },
+          {
+            "name": "privatelink-blob-core-windows-net",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateEndpoints', variables('privateEndpointName'))]",
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.agentsvc.azure-automation.net')]",
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')]",
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.monitor.azure.com')]",
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.ods.opinsights.azure.com')]",
+        "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.oms.opinsights.azure.com')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/privateLinkScopes/scopedResources",
+      "apiVersion": "2021-07-01-preview",
+      "name": "[format('{0}/{1}', variables('privateLinkScopeName'), 'logAnalyticsPrivateLink')]",
+      "properties": {
+        "linkedResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]",
+        "[resourceId('Microsoft.Network/privateEndpoints', variables('privateEndpointName'))]",
+        "[resourceId('microsoft.insights/privateLinkScopes', variables('privateLinkScopeName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/privateLinkScopes/scopedResources",
+      "apiVersion": "2021-07-01-preview",
+      "name": "[format('{0}/{1}', variables('privateLinkScopeName'), 'appInsightsPrivateLink')]",
+      "properties": {
+        "linkedResourceId": "[resourceId('Microsoft.Insights/components', variables('appInsightName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightName'))]",
+        "[resourceId('Microsoft.Network/privateEndpoints', variables('privateEndpointName'))]",
+        "[resourceId('microsoft.insights/privateLinkScopes', variables('privateLinkScopeName'))]"
+      ]
+    }
+  ]
+}
