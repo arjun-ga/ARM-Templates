@@ -5,35 +5,35 @@
     "_generator": {
       "name": "bicep",
       "version": "0.17.1.54307",
-      "templateHash": "10855694245736268780"
+      "templateHash": "9181060035193593449"
     }
   },
   "parameters": {
-    "myTestResourceName": {
+    "baseName": {
       "type": "string",
       "metadata": {
-        "description": " Prefix of all resources"
+        "description": " This is Prefix of all resources. for e.g webapp will be baseName-webapp"
       }
     },
     "location": {
       "type": "string",
       "defaultValue": "[resourceGroup().location]",
       "metadata": {
-        "description": "Location for all resources."
+        "description": "Location where the resources will be deployed."
       }
     }
   },
   "variables": {
-    "vnetName": "[format('{0}-vnet', parameters('myTestResourceName'))]",
+    "vnetName": "[format('{0}-vnet', parameters('baseName'))]",
     "subnetName": "[format('{0}-subnet', variables('vnetName'))]",
-    "privateLinkScopeName": "[format('{0}-private-link-scope', parameters('myTestResourceName'))]",
-    "privateEndpointName": "[format('{0}-private-endpoint', parameters('myTestResourceName'))]",
+    "privateLinkScopeName": "[format('{0}-private-link-scope', parameters('baseName'))]",
+    "privateEndpointName": "[format('{0}-private-endpoint', parameters('baseName'))]",
     "pvtEndpointDnsGroupName": "[format('{0}/default', variables('privateEndpointName'))]",
-    "appName": "[format('{0}-WebApp{1}', parameters('myTestResourceName'), uniqueString(resourceGroup().id))]",
+    "appName": "[format('{0}-WebApp{1}', parameters('baseName'), uniqueString(resourceGroup().id))]",
     "appServicePlanName": "[format('{0}-ASP', variables('appName'))]",
     "appServicePlanSku": "S1",
-    "appInsightName": "[format('{0}-AI', parameters('myTestResourceName'))]",
-    "logAnalyticsName": "[format('{0}-LAW', parameters('myTestResourceName'))]"
+    "appInsightName": "[format('{0}-AI', parameters('baseName'))]",
+    "logAnalyticsName": "[format('{0}-LAW', parameters('baseName'))]"
   },
   "resources": [
     {
