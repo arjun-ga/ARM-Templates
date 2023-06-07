@@ -1,6 +1,6 @@
 /* This deplate will deploy following resources into a single resource group
 Virtual Networks with two subnets once used by web app and another used by Private Endpoint
-AppServicePlan
+AppServicePlan S1 SKU
 WebApp
 Application isnights and Log Analytics Workspace 
 Azure Monitor Private Link Scope
@@ -9,22 +9,22 @@ Adds scoped resources AI and LAW to the AMPLS
 This is for testing/recreate a environement that uses AMPLS, once test is completed you can delete the newly created resource group.
 */
 
-@description(' Prefix of all resources')
-param myTestResourceName string
+@description(' This is Prefix of all resources. for e.g webapp will be baseName-webapp')
+param baseName string
 
-@description('Location for all resources.')
+@description('Location where the resources will be deployed.')
 param location string = resourceGroup().location
 
-var vnetName = '${myTestResourceName}-vnet'
+var vnetName = '${baseName}-vnet'
 var subnetName = '${vnetName}-subnet'
-var privateLinkScopeName = '${myTestResourceName}-private-link-scope'
-var privateEndpointName = '${myTestResourceName}-private-endpoint'
+var privateLinkScopeName = '${baseName}-private-link-scope'
+var privateEndpointName = '${baseName}-private-endpoint'
 var pvtEndpointDnsGroupName = '${privateEndpointName}/default'
-var appName = '${myTestResourceName}-WebApp${uniqueString(resourceGroup().id)}'
+var appName = '${baseName}-WebApp${uniqueString(resourceGroup().id)}'
 var appServicePlanName = '${appName}-ASP'
 var appServicePlanSku = 'S1'
-var appInsightName = '${myTestResourceName}-AI'
-var logAnalyticsName = '${myTestResourceName}-LAW'
+var appInsightName = '${baseName}-AI'
+var logAnalyticsName = '${baseName}-LAW'
 
 // Creating Virtual Network
 resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
@@ -325,4 +325,3 @@ resource appInsightsPrivateLink 'Microsoft.Insights/privateLinkScopes/scopedReso
     privateEndpoint
   ]
 }
-
