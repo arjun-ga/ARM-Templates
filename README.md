@@ -9,4 +9,4 @@ priavte Endpoint with Private DNS Zone Integration
 Adds scoped resources AI and LAW to the AMPLS
 This is for testing/recreate a environement that uses AMPLS, once test is completed you can delete the newly created resource group.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://raw.githubusercontent.com/arjun-ga/templates/main/azuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Farjun-ga%2Ftemplates%2Fmain%2Fazuredeploy.json)
