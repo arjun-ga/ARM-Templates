@@ -1,5 +1,5 @@
 # Deploy WebApp with Vnet-Integration, Application Insights, LAW, AMPLS and Private Link Connection
-This deplate will deploy following resources into a existing single resource group
+This Template will deploy following resources into a existing single resource group
 - Virtual Networks with two subnets one used by web app and another used by Private Endpoint
 - AppServicePlan
 - WebApp
